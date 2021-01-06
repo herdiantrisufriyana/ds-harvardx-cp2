@@ -76,9 +76,23 @@ library(gbm)
 
 
 ################################################################################
+#```{r Build a function to download and read RDS from URL}
+readRDS_url=function(path,url='https://raw.githubusercontent.com/herdiantrisufriyana/ds-harvardx-cp2/master/'){
+  if(!file.exists('data/selection.rds')){
+    suppressMessages(download.file(paste0(url,path),path,method='curl'))
+  }
+  readRDS(path)
+}
+
+
+
+
+
+
+################################################################################
 #```{ Load preselected data }
-selection=readRDS('data/selection.rds')
-target_population=readRDS('data/target_population.rds')
+selection=readRDS_url('data/selection.rds')
+target_population=readRDS_url('data/target_population.rds')
 
 
 
@@ -93,11 +107,11 @@ if(run_heavy_computation){
     
     # Join all codes of diagnosis/procedure
     suppressWarnings(separate(
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
         mutate(seq=seq(nrow(.))) %>%
-        left_join(readRDS('data/admission_diagnosis.rds'),by='visit_id') %>%
-        left_join(readRDS('data/secondary_diagnoses.rds'),by='visit_id') %>%
-        left_join(readRDS('data/procedures.rds'),by='visit_id')
+        left_join(readRDS_url('data/admission_diagnosis.rds'),by='visit_id') %>%
+        left_join(readRDS_url('data/secondary_diagnoses.rds'),by='visit_id') %>%
+        left_join(readRDS_url('data/procedures.rds'),by='visit_id')
       ,icd9_code_desc,c('icd9_code','icd9_desc'),sep='\\s?-\\s?'
     )) %>%
     
@@ -214,7 +228,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(mh_nationwide,'data/mh_nationwide.rds')
  }else{
-  cat(readRDS('data/log.rds')[['mh_nationwide']])
+  cat(readRDS_url('data/log.rds')[['mh_nationwide']])
  }
 
 
@@ -280,7 +294,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(mh_provider,'data/mh_provider.rds')
  }else{
-  cat(readRDS('data/log.rds')[['mh_provider']])
+  cat(readRDS_url('data/log.rds')[['mh_provider']])
  }
 
 
@@ -294,7 +308,7 @@ if(run_heavy_computation){
   rbind(
     
     # Original dataset
-    readRDS('data/target_population.rds') %>%
+    readRDS_url('data/target_population.rds') %>%
       lapply(X=1:2,Y=.,function(X,Y){
         
         # Visit data
@@ -738,7 +752,7 @@ if(run_heavy_computation){
   
   saveRDS(set,'data/set.rds')
  }else{
-  set=readRDS('data/set.rds')
+  set=readRDS_url('data/set.rds')
  }
 
 
@@ -758,7 +772,7 @@ if(run_heavy_computation){
   predictors[[2]]=
     predictors[[1]] %>%
     inner_join(
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
         select(icd10_code,icd10_3mer_desc) %>%
         setNames(c('predictor','description')) %>%
         .[!duplicated(.),]
@@ -769,7 +783,7 @@ if(run_heavy_computation){
   predictors[[3]]=
     predictors[[1]] %>%
     inner_join(
-      readRDS('data/admission_diagnosis.rds') %>%
+      readRDS_url('data/admission_diagnosis.rds') %>%
         select(admission_icd10_code,admission_icd10_3mer_desc) %>%
         setNames(c('predictor','description')) %>%
         .[!duplicated(.),]
@@ -780,7 +794,7 @@ if(run_heavy_computation){
   predictors[[4]]=
     predictors[[1]] %>%
     inner_join(
-      readRDS('data/secondary_diagnoses.rds') %>%
+      readRDS_url('data/secondary_diagnoses.rds') %>%
         select(secondary_icd10_code,secondary_icd10_3mer_desc) %>%
         setNames(c('predictor','description')) %>%
         .[!duplicated(.),]
@@ -792,7 +806,7 @@ if(run_heavy_computation){
     predictors[[1]] %>%
     inner_join(
       suppressWarnings(separate(
-        readRDS('data/procedures.rds') %>%
+        readRDS_url('data/procedures.rds') %>%
           select(icd9_code_desc) %>%
           .[!duplicated(.),,drop=F]
         ,icd9_code_desc,c('predictor','description')
@@ -810,7 +824,7 @@ if(run_heavy_computation){
   
   # Add non-medical history predictors
   predictors=
-    readRDS('data/target_population.rds') %>%
+    readRDS_url('data/target_population.rds') %>%
     select(
       marital_status
       ,insurance_class
@@ -834,7 +848,7 @@ if(run_heavy_computation){
   
   saveRDS(predictors,'data/predictors.rds')
  }else{
-  predictors=readRDS('data/predictors.rds')
+  predictors=readRDS_url('data/predictors.rds')
  }
 
 
@@ -844,7 +858,7 @@ if(run_heavy_computation){
 
 ################################################################################
 #```{ Load DAG list for causal diagram and inference }
-dag=readRDS('data/dag.rds')
+dag=readRDS_url('data/dag.rds')
 
 
 
@@ -865,7 +879,7 @@ if(run_heavy_computation){
   set$inference=
     
     # Standardize age, then normalize -1.96 to 1.96 into 0 to 1
-    readRDS('data/target_population.rds') %>%
+    readRDS_url('data/target_population.rds') %>%
     select(subject_id,day_to_event,outcome,age) %>%
     .[!duplicated(.),] %>%
     filter(subject_id %in% set$intv$subject_id) %>%
@@ -879,7 +893,7 @@ if(run_heavy_computation){
     left_join(
       
       # Group by subject and summarize the predictors
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
         select(
           subject_id
           ,marital_status
@@ -1008,8 +1022,8 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(set$inference,'data/inference.rds')
  }else{
-  cat(readRDS('data/log.rds')[['inference']])
-  set$inference=readRDS('data/inference.rds')
+  cat(readRDS_url('data/log.rds')[['inference']])
+  set$inference=readRDS_url('data/inference.rds')
  }
 
 
@@ -1252,8 +1266,8 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(dag$gest,'data/g_estimation.rds')
  }else{
-  cat(readRDS('data/log.rds')[['g_estimation']])
-  dag$gest=readRDS('data/g_estimation.rds')
+  cat(readRDS_url('data/log.rds')[['g_estimation']])
+  dag$gest=readRDS_url('data/g_estimation.rds')
  }
 
 dag$sig=
@@ -1361,7 +1375,7 @@ if(run_heavy_computation){
   set$training=
     
     ## Numerical predictors (age), standardize, and normalize intor 0 to 1
-    readRDS('data/target_population.rds') %>%
+    readRDS_url('data/target_population.rds') %>%
     select(subject_id,day_to_event,outcome,age) %>%
     .[!duplicated(.),] %>%
     filter(subject_id %in% set$intv$subject_id) %>%
@@ -1373,7 +1387,7 @@ if(run_heavy_computation){
     
     ## Categorical predictors and getting these cleaned
     left_join(
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
         select(
           subject_id
           ,marital_status
@@ -1459,7 +1473,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(set$training,'data/training.rds')
  }else{
-  cat(readRDS('data/log.rds')[['training']])
+  cat(readRDS_url('data/log.rds')[['training']])
  }
 
 
@@ -1549,7 +1563,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(model$ridge,paste0('data/ridge.rds'))
  }else{
-  cat(readRDS('data/log.rds')[['ridge']])
+  cat(readRDS_url('data/log.rds')[['ridge']])
  }
 
 
@@ -1614,7 +1628,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(model$pca_nps,'data/pca_nps.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pca_nps']])
+  cat(readRDS_url('data/log.rds')[['pca_nps']])
  }
 
 
@@ -1723,7 +1737,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(set$training_pc_nps,'data/training_pc_nps.rds')
  }else{
-  cat(readRDS('data/log.rds')[['training_pc_nps']])
+  cat(readRDS_url('data/log.rds')[['training_pc_nps']])
  }
 
 
@@ -1808,7 +1822,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(model$pc_nps_elnet,'data/pc_nps_elnet.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pc_nps_elnet']])
+  cat(readRDS_url('data/log.rds')[['pc_nps_elnet']])
  }
 
 
@@ -1834,7 +1848,7 @@ if(run_heavy_computation){
   
   saveRDS(set$selected_pc,'data/selected_pc.rds')
  }else{
-  set$selected_pc=readRDS('data/selected_pc.rds')
+  set$selected_pc=readRDS_url('data/selected_pc.rds')
  }
 
 
@@ -1854,7 +1868,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(set$training_spc_nps,'data/training_spc_nps.rds')
  }else{
-  cat(readRDS('data/log.rds')[['training_spc_nps']])
+  cat(readRDS_url('data/log.rds')[['training_spc_nps']])
  }
 
 
@@ -1939,7 +1953,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(model$spc_nps_rf,'data/spc_nps_rf.rds')
  }else{
-  cat(readRDS('data/log.rds')[['spc_nps_rf']])
+  cat(readRDS_url('data/log.rds')[['spc_nps_rf']])
  }
 
 
@@ -2019,7 +2033,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(model$spc_nps_lda,'data/spc_nps_lda.rds')
  }else{
-  cat(readRDS('data/log.rds')[['spc_nps_lda']])
+  cat(readRDS_url('data/log.rds')[['spc_nps_lda']])
  }
 
 
@@ -2105,7 +2119,7 @@ if(run_heavy_computation){
   rm(pb)
   saveRDS(model$spc_nps_gbm,'data/spc_nps_gbm.rds')
  }else{
-  cat(readRDS('data/log.rds')[['spc_nps_gbm']])
+  cat(readRDS_url('data/log.rds')[['spc_nps_gbm']])
  }
 
 
@@ -2142,7 +2156,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_pre_calib.rds')
  }else{
-  reported_data$pre_calib=readRDS('data/report_pre_calib.rds')
+  reported_data$pre_calib=readRDS_url('data/report_pre_calib.rds')
  }
 
 
@@ -2169,7 +2183,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_pre_caldist.rds')
  }else{
-  reported_data$pre_caldist=readRDS('data/report_pre_caldist.rds')
+  reported_data$pre_caldist=readRDS_url('data/report_pre_caldist.rds')
  }
 
 
@@ -2206,7 +2220,7 @@ if(run_heavy_computation){
     mutate_at(colnames(.) %>% .[.!='model'],function(x)round(x,2)) %>%
     saveRDS('data/report_pre_calislope.rds')
  }else{
-  reported_data$pre_calislope=readRDS('data/report_pre_calislope.rds')
+  reported_data$pre_calislope=readRDS_url('data/report_pre_calislope.rds')
  }
 
 
@@ -2228,7 +2242,7 @@ if(run_heavy_computation){
     mutate(model=reorder(model,ROC)) %>%
     saveRDS('data/report_pre_roc.rds')
  }else{
-  reported_data$pre_roc=readRDS('data/report_pre_roc.rds')
+  reported_data$pre_roc=readRDS_url('data/report_pre_roc.rds')
  }
 
 
@@ -2249,7 +2263,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_pre_auroc.rds')
  }else{
-  reported_data$pre_auroc=readRDS('data/report_pre_auroc.rds')
+  reported_data$pre_auroc=readRDS_url('data/report_pre_auroc.rds')
  }
 
 
@@ -2278,7 +2292,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(set$training_calib,'data/training_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['training_calib']])
+  cat(readRDS_url('data/log.rds')[['training_calib']])
  }
 
 
@@ -2328,7 +2342,7 @@ if(run_heavy_computation){
   cat('End:',as.character(now()))
   saveRDS(calib_model,'data/calib_model.rds')
  }else{
-  cat(readRDS('data/log.rds')[['calib_model']])
+  cat(readRDS_url('data/log.rds')[['calib_model']])
  }
 
 
@@ -2357,7 +2371,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_post_calib.rds')
  }else{
-  reported_data$post_calib=readRDS('data/report_post_calib.rds')
+  reported_data$post_calib=readRDS_url('data/report_post_calib.rds')
  }
 
 
@@ -2384,7 +2398,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_post_caldist.rds')
  }else{
-  reported_data$post_caldist=readRDS('data/report_post_caldist.rds')
+  reported_data$post_caldist=readRDS_url('data/report_post_caldist.rds')
  }
 
 
@@ -2421,7 +2435,7 @@ if(run_heavy_computation){
     mutate_at(colnames(.) %>% .[.!='model'],function(x)round(x,2)) %>%
     saveRDS('data/report_post_calislope.rds')
  }else{
-  reported_data$post_calislope=readRDS('data/report_post_calislope.rds')
+  reported_data$post_calislope=readRDS_url('data/report_post_calislope.rds')
  }
 
 
@@ -2443,7 +2457,7 @@ if(run_heavy_computation){
     mutate(model=reorder(model,ROC)) %>%
     saveRDS('data/report_post_roc.rds')
  }else{
-  reported_data$post_roc=readRDS('data/report_post_roc.rds')
+  reported_data$post_roc=readRDS_url('data/report_post_roc.rds')
  }
 
 
@@ -2464,7 +2478,7 @@ if(run_heavy_computation){
     do.call(rbind,.) %>%
     saveRDS('data/report_post_auroc.rds')
  }else{
-  reported_data$post_auroc=readRDS('data/report_post_auroc.rds')
+  reported_data$post_auroc=readRDS_url('data/report_post_auroc.rds')
  }
 
 
@@ -2475,7 +2489,7 @@ if(run_heavy_computation){
 ################################################################################
 #```{ Construct a class-balanced testing set by provider ... }
 if(run_heavy_computation){
-  mh_provider=readRDS('data/mh_provider.rds')
+  mh_provider=readRDS_url('data/mh_provider.rds')
   construct_testing_set=function(testing_idx_db){
     
     # Use provider medical history
@@ -2542,7 +2556,7 @@ if(run_heavy_computation){
     
     # Compute mean and standard deviation of age based on training set
     training_age_sum=
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
       select(subject_id,day_to_event,outcome,age) %>%
       .[!duplicated(.),] %>%
       filter(subject_id %in% set$intv$subject_id) %>%
@@ -2553,7 +2567,7 @@ if(run_heavy_computation){
       
       ## Numerical predictors (age), standardize, and normalize into 0 to 1
       ## using the training set
-      readRDS('data/target_population.rds') %>%
+      readRDS_url('data/target_population.rds') %>%
       select(subject_id,day_to_event,outcome,age) %>%
       .[!duplicated(.),] %>%
       filter(subject_id %in% testing_idx_db$subject_id) %>%
@@ -2562,7 +2576,7 @@ if(run_heavy_computation){
       
       ## Categorical predictors and getting these cleaned
       left_join(
-        readRDS('data/target_population.rds') %>%
+        readRDS_url('data/target_population.rds') %>%
           select(
             subject_id
             ,marital_status
@@ -2716,7 +2730,7 @@ if(run_heavy_computation){
   saveRDS(pred$ridge_calib,'data/pred_ridge_calib.rds')
   saveRDS(mod_eval$ridge_calib,'data/mod_eval_ridge_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pred_eval_ridge_calib']])
+  cat(readRDS_url('data/log.rds')[['pred_eval_ridge_calib']])
  }
 
 
@@ -2789,7 +2803,7 @@ if(run_heavy_computation){
   saveRDS(pred$pc_nps_elnet_calib,'data/pred_pc_nps_elnet_calib.rds')
   saveRDS(mod_eval$pc_nps_elnet_calib,'data/mod_eval_pc_nps_elnet_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pred_eval_pc_nps_elnet_calib']])
+  cat(readRDS_url('data/log.rds')[['pred_eval_pc_nps_elnet_calib']])
  }
 
 
@@ -2857,7 +2871,7 @@ if(run_heavy_computation){
   saveRDS(pred$rf_calib,'data/pred_rf_calib.rds')
   saveRDS(mod_eval$rf_calib,'data/mod_eval_rf_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pred_eval_rf_calib']])
+  cat(readRDS_url('data/log.rds')[['pred_eval_rf_calib']])
  }
 
 
@@ -2926,7 +2940,7 @@ if(run_heavy_computation){
   saveRDS(pred$lda_calib,'data/pred_lda_calib.rds')
   saveRDS(mod_eval$lda_calib,'data/mod_eval_lda_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pred_eval_lda_calib']])
+  cat(readRDS_url('data/log.rds')[['pred_eval_lda_calib']])
  }
 
 
@@ -2996,7 +3010,7 @@ if(run_heavy_computation){
   saveRDS(pred$gbm_calib,'data/pred_gbm_calib.rds')
   saveRDS(mod_eval$gbm_calib,'data/mod_eval_gbm_calib.rds')
  }else{
-  cat(readRDS('data/log.rds')[['pred_eval_gbm_calib']])
+  cat(readRDS_url('data/log.rds')[['pred_eval_gbm_calib']])
  }
 
 
@@ -3025,7 +3039,7 @@ if(run_heavy_computation){
     mutate_at(colnames(.) %>% .[!.%in%c('model','set')],function(x)as.numeric(x)) %>%
     saveRDS('data/report_calib_test.rds')
  }else{
-  reported_data$calib_test=readRDS('data/report_calib_test.rds')
+  reported_data$calib_test=readRDS_url('data/report_calib_test.rds')
  }
 
 
@@ -3055,7 +3069,7 @@ if(run_heavy_computation){
   
   saveRDS(rotated_pc,'data/rotated_pc.rds')
  }else{
-  rotated_pc=readRDS('data/rotated_pc.rds')
+  rotated_pc=readRDS_url('data/rotated_pc.rds')
  }
 
 
@@ -3075,5 +3089,5 @@ if(run_heavy_computation){
   
   saveRDS(varimp_gbm,'data/varimp_gbm.rds')
  }else{
-  varimp_gbm=readRDS('data/varimp_gbm.rds')
+  varimp_gbm=readRDS_url('data/varimp_gbm.rds')
  }
